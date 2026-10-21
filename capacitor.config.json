@@ -1,0 +1,21 @@
+{
+  "appId": "com.cronble.ai",
+  "appName": "Cronble",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "iosScheme": "https",
+    "androidScheme": "https",
+    "allowNavigation": [
+      "localhost",
+      "*.run.app",
+      "*.googleapis.com"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile",
+    "limitsNavigationsToAppBoundDomains": true,
+    "scheme": "Cronble"
+  }
+}

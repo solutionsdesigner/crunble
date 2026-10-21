@@ -1,0 +1,104 @@
+workflows:
+  ios-app-store:
+    name: Cronble iOS App Store Release Pipeline
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic_api_key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.cronble.ai
+      vars:
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.cronble.ai"
+        APP_ID: "com.cronble.ai"
+      node: 20
+      xcode: latest
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Step 1: Clean dependency installation
+        script: |
+          echo "Installing dependencies cleanly with npm..."
+          npm ci --legacy-peer-deps || npm install
+
+      - name: Step 2: Web bundle compilation
+        script: |
+          echo "Compiling modern responsive web assets..."
+          npm run build
+
+      - name: Step 3: Capacitor native project synchronization
+        script: |
+          echo "Synchronizing Capacitor native iOS container..."
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+          npx cap sync ios
+          # Ensure generated App Store and native icons are populated
+          if [ -f "scripts/generate-app-icons.js" ]; then
+            node scripts/generate-app-icons.js ios/App/App/Assets.xcassets/AppIcon.appiconset
+          fi
+
+      - name: Step 4: Provisioning profile association
+        script: |
+          echo "Setting up provisioning profiles with Apple Developer / Codemagic..."
+          xcode-project use-profiles
+
+      - name: Step 5: Automated Dynamic Versioning
+        script: |
+          echo "Querying App Store Connect for highest TestFlight build number..."
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo 0)
+          if [ -z "$LATEST_BUILD_NUMBER" ] || [ "$LATEST_BUILD_NUMBER" -eq 0 ] 2>/dev/null; then
+            NEXT_BUILD_NUMBER=1
+          else
+            NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          fi
+          echo "Resolved Next Build Number: $NEXT_BUILD_NUMBER"
+          
+          # Update Xcode versioning with agvtool & project.pbxproj sed fallback
+          cd ios/App
+          agvtool new-version -all "$NEXT_BUILD_NUMBER" || true
+          sed -i '' -e "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $NEXT_BUILD_NUMBER/g" App.xcodeproj/project.pbxproj || true
+          cd ../..
+
+      - name: Step 6: Native IPA building with xcode-project build-ipa
+        script: |
+          echo "Building native signed iOS IPA for App Store distribution..."
+          if [ -d "$XCODE_WORKSPACE" ]; then
+            xcode-project build-ipa \
+              --workspace "$XCODE_WORKSPACE" \
+              --scheme "$XCODE_SCHEME"
+          else
+            xcode-project build-ipa \
+              --project "$XCODE_PROJECT" \
+              --scheme "$XCODE_SCHEME"
+          fi
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - "*.log"
+
+    publishing:
+      email:
+        recipients:
+          - thesolutionsdesigner@gmail.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+        expire_build_submissions: true

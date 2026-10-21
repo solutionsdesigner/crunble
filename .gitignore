@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs & artifacts
+dist/
+build/
+*.ipa
+*.dSYM.zip
+*.log
+xcodebuild.log
+DerivedData/
+
+# Environment variables & secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Apple Developer & Code Signing Security
+*.p8
+*.p12
+*.cer
+*.cert
+*.mobileprovision
+*.key
+*.keystore
+*.jks
+AuthKey_*.p8
+apple_keys/
+certificates/
+profiles/
+
+# Native iOS / Xcode ephemeral files
+ios/App/Pods/
+ios/App/Podfile.lock
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+
+# OS and Editor artifacts
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vscode/*
+!.vscode/extensions.json
+.idea/
